@@ -10,6 +10,9 @@ import org.springframework.stereotype.Service;
 import javax.crypto.SecretKey;
 import java.util.Base64;
 import java.util.Date;
+import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.function.Function;
 
 @Service
@@ -27,7 +30,12 @@ public class JwtService {
     }
 
     public String generateToken(String username) {
+        return generateToken(username, new HashMap<>());
+    }
+
+    public String generateToken(String username, Map<String, Object> extraClaims) {
         return Jwts.builder()
+                .setClaims(extraClaims)
                 .setSubject(username)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + jwtExpiration))
@@ -37,6 +45,11 @@ public class JwtService {
 
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
+    }
+
+    @SuppressWarnings("unchecked")
+    public List<String> extractRoles(String token) {
+        return extractClaim(token, claims -> (List<String>) claims.get("roles"));
     }
 
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
@@ -49,10 +62,24 @@ public class JwtService {
     }
 
     public boolean isTokenValid(String token, String username) {
-        return (username.equals(extractUsername(token)) && !isTokenExpired(token));
+        try {
+            return (username.equals(extractUsername(token)) && !isTokenExpired(token));
+        } catch (Exception e) {
+            // Token is invalid (expired, malformed, etc.)
+            return false;
+        }
     }
 
     private boolean isTokenExpired(String token) {
-        return extractClaim(token, Claims::getExpiration).before(new Date());
+        try {
+            return extractClaim(token, Claims::getExpiration).before(new Date());
+        } catch (Exception e) {
+            // If we can't extract expiration, consider token as expired
+            return true;
+        }
+    }
+    
+    public boolean isTokenExpiredPublic(String token) {
+        return isTokenExpired(token);
     }
 }
