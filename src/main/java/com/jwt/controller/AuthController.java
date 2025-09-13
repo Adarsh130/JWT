@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.Collections;
 
 @RestController
 @RequestMapping("/auth")
@@ -102,5 +103,32 @@ public class AuthController {
     @GetMapping("/protected")
     public ResponseEntity<?> protectedEndpoint() {
         return ResponseEntity.ok(Map.of("message", "This is a protected endpoint!"));
+    }
+    
+    @PostMapping("/validate-token")
+    public ResponseEntity<?> validateToken(@RequestBody Map<String, String> request) {
+        String token = request.get("token");
+        
+        if (token == null || token.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Token is required"));
+        }
+        
+        try {
+            String username = jwtService.extractUsername(token);
+            boolean isExpired = jwtService.isTokenExpiredPublic(token);
+            List<String> roles = jwtService.extractRoles(token);
+            
+            return ResponseEntity.ok(Map.of(
+                "valid", !isExpired,
+                "expired", isExpired,
+                "username", username,
+                "roles", roles != null ? roles : List.of()
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "error", "Invalid token",
+                "details", e.getMessage()
+            ));
+        }
     }
 }

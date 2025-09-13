@@ -43,6 +43,7 @@ Content-Type: application/json
 
 #### 2. Register Admin
 ```http
+
 POST /auth/register-admin
 Content-Type: application/json
 
