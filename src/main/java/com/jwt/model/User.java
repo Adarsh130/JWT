@@ -8,6 +8,10 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
+import java.util.Set;
+import java.util.HashSet;
+import java.util.Collections;
+
 @Document(collection = "users")
 public class User {
     @Id
@@ -27,15 +31,22 @@ public class User {
     @Size(min = 6, message = "Password must be at least 6 characters")
     private String password;
     
-    private String role = "USER";
+    private Set<Role> roles = new HashSet<>(Collections.singletonList(Role.USER));
 
     public User() {}
 
-    public User(String username, String email, String password, String role) {
+    public User(String username, String email, String password) {
         this.username = username;
         this.email = email;
         this.password = password;
-        this.role = role;
+        this.roles = new HashSet<>(Collections.singletonList(Role.USER));
+    }
+
+    public User(String username, String email, String password, Set<Role> roles) {
+        this.username = username;
+        this.email = email;
+        this.password = password;
+        this.roles = roles != null ? roles : new HashSet<>(Collections.singletonList(Role.USER));
     }
 
     // Getters and Setters
@@ -51,6 +62,25 @@ public class User {
     public String getPassword() { return password; }
     public void setPassword(String password) { this.password = password; }
 
-    public String getRole() { return role; }
-    public void setRole(String role) { this.role = role; }
+    public Set<Role> getRoles() { return roles; }
+    public void setRoles(Set<Role> roles) { this.roles = roles; }
+    
+    public void addRole(Role role) {
+        if (this.roles == null) {
+            this.roles = new HashSet<>();
+        }
+        this.roles.add(role);
+    }
+    
+    public boolean hasRole(Role role) {
+        return this.roles != null && this.roles.contains(role);
+    }
+    
+    public boolean isAdmin() {
+        return hasRole(Role.ADMIN);
+    }
+    
+    public boolean isUser() {
+        return hasRole(Role.USER);
+    }
 }

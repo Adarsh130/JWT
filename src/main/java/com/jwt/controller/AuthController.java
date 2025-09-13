@@ -2,6 +2,7 @@ package com.jwt.controller;
 
 import com.jwt.config.JwtService;
 import com.jwt.model.User;
+import com.jwt.model.Role;
 import com.jwt.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -15,6 +16,9 @@ import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 
 import java.util.Map;
+import java.util.HashMap;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/auth")
@@ -33,7 +37,25 @@ public class AuthController {
     public ResponseEntity<?> register(@Valid @RequestBody User user) {
         try {
             User savedUser = userService.register(user);
-            return ResponseEntity.ok(Map.of("message", "User registered successfully", "userId", savedUser.getId()));
+            return ResponseEntity.ok(Map.of(
+                "message", "User registered successfully", 
+                "userId", savedUser.getId(),
+                "roles", savedUser.getRoles().stream().map(Role::getValue).collect(Collectors.toList())
+            ));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+    
+    @PostMapping("/register-admin")
+    public ResponseEntity<?> registerAdmin(@Valid @RequestBody User user) {
+        try {
+            User savedUser = userService.registerAdmin(user);
+            return ResponseEntity.ok(Map.of(
+                "message", "Admin registered successfully", 
+                "userId", savedUser.getId(),
+                "roles", savedUser.getRoles().stream().map(Role::getValue).collect(Collectors.toList())
+            ));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
@@ -49,8 +71,24 @@ public class AuthController {
                     new UsernamePasswordAuthenticationToken(username, password)
             );
 
-            String token = jwtService.generateToken(username);
-            return ResponseEntity.ok(Map.of("token", token));
+            // Get user details to include roles in token
+            User user = userService.findByUsername(username)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+            
+            // Create claims with roles
+            Map<String, Object> claims = new HashMap<>();
+            List<String> roles = user.getRoles().stream()
+                    .map(Role::getValue)
+                    .collect(Collectors.toList());
+            claims.put("roles", roles);
+            
+            String token = jwtService.generateToken(username, claims);
+            
+            return ResponseEntity.ok(Map.of(
+                "token", token,
+                "username", username,
+                "roles", roles
+            ));
         } catch (AuthenticationException e) {
             return ResponseEntity.badRequest().body(Map.of("error", "Invalid username or password"));
         }
